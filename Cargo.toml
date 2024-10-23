@@ -1,0 +1,20 @@
+[package]
+name = "ot-decay"
+version = "0.1.0"
+edition = "2021"
+
+# Enable a small amount of optimization in the dev profile.
+[profile.dev]
+opt-level = 1
+
+# Enable a large amount of optimization in the dev profile for dependencies.
+[profile.dev.package."*"]
+opt-level = 3
+
+[dependencies]
+bevy = { git = "https://github.com/bevyengine/bevy", commit = "9930df83ed42008f7eb2c02cc7350040f0250c2e" }
+rand = "0.8"
+
+[[example]]
+name = "simple_decay"
+path = "examples/simple_decay.rs"
