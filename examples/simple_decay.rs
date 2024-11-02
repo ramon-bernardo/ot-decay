@@ -18,8 +18,12 @@ fn startup(mut commands: Commands) {
         for max in 15..30 {
             let min = Duration::from_secs(min);
             let max = Duration::from_secs(max);
-            commands.spawn((Item, Decay, DecayDuration::new(min, max)));
+            commands.spawn((Item, Decay, DecayDuration::randomized(min, max)));
         }
+    }
+
+    for i in 0..30 {
+        commands.spawn((Item, Decay, DecayDuration::new(Duration::from_secs(i))));
     }
 }
 

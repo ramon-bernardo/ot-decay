@@ -62,11 +62,16 @@ pub struct DecayDuration {
 }
 
 impl DecayDuration {
+    /// Creates a new `DecayDuration` with a fixed decay duration.
+    pub fn new(duration: Duration) -> Self {
+        Self::randomized(duration, duration)
+    }
+
     /// Creates a new `DecayDuration` with the specified minimum and maximum durations.
     ///
     /// If the provided `min` duration is greater than the `max` duration,
     /// the values are swapped to ensure valid range.
-    pub fn new(min: Duration, max: Duration) -> Self {
+    pub fn randomized(min: Duration, max: Duration) -> Self {
         if min > max {
             Self { min: max, max: min }
         } else {
@@ -80,16 +85,23 @@ impl DecayDuration {
     pub fn is_zero(&self) -> bool {
         self.min == Duration::ZERO && self.max == Duration::ZERO
     }
+}
 
-    /// Generates a random duration within the `min` to `max` range.
-    ///
-    /// This method utilizes a random number generator to select a duration between the
-    /// minimum and maximum values, inclusive. The resulting duration is suitable for
-    /// initiating the decay process for an entity.
-    pub fn random_duration(&self) -> Duration {
-        let mut rng = rand::thread_rng();
-        let random_millis = rng.gen_range(self.min.as_millis()..=self.max.as_millis());
-        return Duration::from_millis(random_millis as u64);
+/// Converts a reference to `DecayDuration` into a `Duration`, selecting a random value
+/// within the specified `min` and `max` range if they differ.
+///
+/// When `min` and `max` are the same, the returned duration is fixed. Otherwise, a
+/// random duration between `min` and `max` is chosen, adding variability to the decay
+/// process and making it less predictable.
+impl From<&DecayDuration> for Duration {
+    fn from(duration: &DecayDuration) -> Self {
+        if duration.min == duration.max {
+            duration.min
+        } else {
+            let mut rng = rand::thread_rng();
+            let random_millis = rng.gen_range(duration.min.as_millis()..=duration.max.as_millis());
+            Duration::from_millis(random_millis as u64)
+        }
     }
 }
 
@@ -143,19 +155,19 @@ fn handle_decay_start(
     mut commands: Commands,
     mut query: Query<(Entity, &DecayDuration, Option<&mut DecayTimer>)>,
 ) {
-    let Ok((entity, duration, timer)) = query.get_mut(trigger.entity()) else {
+    let Ok((entity, decay_duration, decay_timer)) = query.get_mut(trigger.entity()) else {
         return;
     };
 
     // If the decay duration is zero, remove the `Decay` and `DecayTimer` components immediately.
-    if duration.is_zero() {
+    if decay_duration.is_zero() {
         commands
             .entity(entity)
             .remove::<Decay>()
             .remove::<DecayTimer>();
     }
     // If a timer already exists, unpause it.
-    else if let Some(mut timer) = timer {
+    else if let Some(mut timer) = decay_timer {
         timer.unpause();
 
         // Trigger the `DecayStarted` event with the remaining duration.
@@ -164,9 +176,9 @@ fn handle_decay_start(
             duration: timer.remaining(),
         });
     }
-    // If no timer exists, create a new timer with a random duration and start the decay process.
+    // If no timer exists, create a new timer with a duration and start the decay process.
     else {
-        let duration = duration.random_duration();
+        let duration = Duration::from(decay_duration);
         commands.entity(entity).insert(DecayTimer::new(duration));
 
         // Trigger the `DecayStarted` event with the duration.
